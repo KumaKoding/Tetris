@@ -7,7 +7,7 @@ SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRC))
 
 CFLAGS = -Wall -Iinclude
-LFLAGS = -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit
+LFLAGS = -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -fsanitize=undefined
 
 .PHONY: all clean run
 
