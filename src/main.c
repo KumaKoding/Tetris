@@ -1083,7 +1083,9 @@ int main(void)
 	unbind_VAO(*shaders);
 	unbind_VBO(*shaders);
 	unbind_EBO(*shaders);
-	
+
+	int game_over = 0;
+
 	int lock_delay_delta = 0;
 	int lock_delay_rotations = 0;
 	int drop_frame_delta = 0;
@@ -1097,7 +1099,7 @@ int main(void)
 	struct KeyState left = { .is_active = INACTIVE, .mode = RELEASED, .frame_delta = 0 };
 	struct KeyState right = { .is_active = INACTIVE, .mode = RELEASED, .frame_delta = 0 };
 
-    while(!glfwWindowShouldClose(window))
+    while(!glfwWindowShouldClose(window) && !game_over)
     {
 		if(t_ahead - t_behind >= 1.0f / 60.0f)
 		{
@@ -1128,6 +1130,10 @@ int main(void)
 				{
 					shape.y -= 1;
 				}
+				else 
+				{
+					lock_delay_delta = LOCK_DELAY;
+				}
 			}
 			if(left.is_active == ACTIVE) 
 			{
@@ -1157,12 +1163,20 @@ int main(void)
 						{
 							int board_index = (shape.x + (int)points[i].x) + ((shape.y + (int)points[i].y) * BOARD_WIDTH);
 							board[board_index] = shape.color;
+
+							if(shape.y + points[i].y >= BOARD_HEIGHT)
+							{
+								game_over = 1;
+							}
 						}
 
-						remove_rows(board, vertices, &VBO_len, indices, &EBO_len);
+						if(!game_over)
+						{
+							remove_rows(board, vertices, &VBO_len, indices, &EBO_len);
 
-						generate_new_active_shape(&shape);
-						add_active_shape(&shape, vertices, &VBO_len, indices, &EBO_len);
+							generate_new_active_shape(&shape);
+							add_active_shape(&shape, vertices, &VBO_len, indices, &EBO_len);
+						}
 					}
 				}
 				else 
@@ -1173,40 +1187,43 @@ int main(void)
 					shape.y--;
 				}
 			}
+	
+			if(!game_over)
+			{
+				VBO_len -= 4 * QUAD_VERTICES;
+				EBO_len -= 4 * QUAD_INDICES;
 
-			VBO_len -= 4 * QUAD_VERTICES;
-			EBO_len -= 4 * QUAD_INDICES;
+				add_active_shape(&shape, vertices, &VBO_len, indices, &EBO_len);
+				bind_VBO(*shaders);
 
-			add_active_shape(&shape, vertices, &VBO_len, indices, &EBO_len);
-			bind_VBO(*shaders);
+				glBufferSubData(GL_ARRAY_BUFFER, 0, VBO_len * VERTEX_ELEMENTS * sizeof(GLfloat), vertices);
+				glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, EBO_len * sizeof(GLuint), indices);
 
-			glBufferSubData(GL_ARRAY_BUFFER, 0, VBO_len * VERTEX_ELEMENTS * sizeof(GLfloat), vertices);
-			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, EBO_len * sizeof(GLuint), indices);
+				unbind_VBO(*shaders);
 
-			unbind_VBO(*shaders);
+				activate_shaders(*shaders);
 
-			activate_shaders(*shaders);
+				bind_VAO(*shaders);
+				glDrawElements(GL_TRIANGLES, EBO_len, GL_UNSIGNED_INT, 0);
 
-			bind_VAO(*shaders);
-			glDrawElements(GL_TRIANGLES, EBO_len, GL_UNSIGNED_INT, 0);
+				glfwSwapBuffers(window);
+				glfwPollEvents();
 
-			glfwSwapBuffers(window);
-			glfwPollEvents();
+				t_behind = t_ahead;
 
-			t_behind = t_ahead;
+				manage_key_state(&up, window, GLFW_KEY_UP, 0);
+				manage_key_state(&down, window, GLFW_KEY_DOWN, 1);
+				manage_key_state(&left, window, GLFW_KEY_LEFT, 1);
+				manage_key_state(&right, window, GLFW_KEY_RIGHT, 1);
 
-			manage_key_state(&up, window, GLFW_KEY_UP, 0);
-			manage_key_state(&down, window, GLFW_KEY_DOWN, 1);
-			manage_key_state(&left, window, GLFW_KEY_LEFT, 1);
-			manage_key_state(&right, window, GLFW_KEY_RIGHT, 1);
+				up.frame_delta++;
+				down.frame_delta++;
+				left.frame_delta++;
+				right.frame_delta++;
+				lock_delay_delta++;
 
-			up.frame_delta++;
-			down.frame_delta++;
-			left.frame_delta++;
-			right.frame_delta++;
-			lock_delay_delta++;
-
-			drop_frame_delta++;
+				drop_frame_delta++;
+			}
 		}
 
 		t_ahead = glfwGetTime();
